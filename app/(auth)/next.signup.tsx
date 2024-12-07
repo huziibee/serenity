@@ -1,58 +1,26 @@
 import React, { useState } from "react";
-import { Image, ScrollView, Text, View, Alert } from "react-native";
-import { Link, Redirect, router } from "expo-router";
+import { Image, ScrollView, Text, View } from "react-native";
+import { Link, Redirect } from "expo-router";
 import Modal from "react-native-modal";
-import axios from "axios";
-import { useStore } from "@/store/index";
+
 import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
+import OAuth from "@/components/OAuth";
 import { icons, images } from "@/constants";
 
 const SignUp = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
   });
 
-  const { setEmail } = useStore();
-
-  const handleSignUp = async () => {
+  const handleSignUp = () => {
+    // Implement sign up logic here
     console.log("Sign up with:", form);
-
-    // Validate input fields
-    const { name, email, password } = form;
-    if (!name || !email || !password) {
-      Alert.alert("Error", "All fields are required!");
-      return;
-    }
-
-    try {
-      const response = await axios.post("http://192.168.0.3:5000/sign_up", {
-        name,
-        email,
-        password,
-      });
-
-      if (response.status === 201) {
-        console.log("User signed up successfully:", response.data);
-        setEmail(email);
-        setShowSuccessModal(true);
-      }
-    } catch (error) {
-      if (error.response) {
-        console.error("Sign up error:", error.response.data.error);
-        Alert.alert(
-          "Sign Up Failed",
-          error.response.data.error ||
-            "Unable to create account. Please try again."
-        );
-      } else {
-        console.error("Unexpected error:", error);
-        Alert.alert("Error", "An unexpected error occurred. Please try again.");
-      }
-    }
+    setShowSuccessModal(true);
   };
 
   return (
@@ -109,6 +77,7 @@ const SignUp = () => {
             onPress={handleSignUp}
             style={{ marginTop: 24 }}
           />
+          {/* <OAuth /> */}
           <Link
             href="/sign-in"
             style={{
@@ -119,7 +88,7 @@ const SignUp = () => {
             }}
           >
             Already have an account?{" "}
-            <Text style={{ color: "#e2d3fe" }}>Log In</Text>
+            <Text style={{ color: "#c8bffe" }}>Log In</Text>
           </Link>
         </View>
         <Modal
@@ -162,7 +131,8 @@ const SignUp = () => {
               title="Browse Home"
               onPress={() => {
                 setShowSuccessModal(false);
-                router.push("/(root)/(tabs)/home");
+                <Redirect href="/(root)/(tabs)/home" />;
+                // Navigate to home screen
               }}
               style={{ marginTop: 20 }}
             />

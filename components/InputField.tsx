@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   TextInput,
   View,
@@ -7,11 +8,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  StyleSheet,
 } from "react-native";
 
 import { InputFieldProps } from "@/types/type";
 
-const InputField = ({
+const InputField: React.FC<InputFieldProps> = ({
   label,
   icon,
   secureTextEntry = false,
@@ -19,26 +21,22 @@ const InputField = ({
   containerStyle,
   inputStyle,
   iconStyle,
-  className,
   ...props
-}: InputFieldProps) => {
+}) => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.keyboardAvoidingView}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className="my-2 w-full">
-          <Text className={`text-lg font-JakartaSemiBold mb-3 ${labelStyle}`}>
-            {label}
-          </Text>
-          <View
-            className={`flex flex-row justify-start items-center relative bg-neutral-100 rounded-full border border-neutral-100 focus:border-primary-500  ${containerStyle}`}
-          >
+        <View style={styles.container}>
+          <Text style={[styles.label, labelStyle]}>{label}</Text>
+          <View style={[styles.inputContainer, containerStyle]}>
             {icon && (
-              <Image source={icon} className={`w-6 h-6 ml-4 ${iconStyle}`} />
+              <Image source={icon} style={[styles.icon, iconStyle]} />
             )}
             <TextInput
-              className={`rounded-full p-4 font-JakartaSemiBold text-[15px] flex-1 ${inputStyle} text-left`}
+              style={[styles.input, inputStyle]}
               secureTextEntry={secureTextEntry}
               {...props}
             />
@@ -48,5 +46,40 @@ const InputField = ({
     </KeyboardAvoidingView>
   );
 };
+
+const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    width: '100%',
+  },
+  container: {
+    marginVertical: 8,
+    width: '100%',
+  },
+  label: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 9999,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  icon: {
+    width: 24,
+    height: 24,
+    marginLeft: 16,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    fontWeight: '600',
+    fontSize: 15,
+  },
+});
 
 export default InputField;

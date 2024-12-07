@@ -1,143 +1,401 @@
-import { useUser } from "@clerk/clerk-expo";
-import { useAuth } from "@clerk/clerk-expo";
-import * as Location from "expo-location";
-import { router } from "expo-router";
-import { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ScrollView,
   Text,
   View,
+  StyleSheet,
   TouchableOpacity,
-  Image,
-  FlatList,
-  ActivityIndicator,
+  Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useStore } from "@/store/index";
+interface DashboardCardProps {
+  title: string;
+  children: React.ReactNode;
+  gradient?: boolean;
+}
 
-import GoogleTextInput from "@/components/GoogleTextInput";
-import Map from "@/components/Map";
-import RideCard from "@/components/RideCard";
-import { icons, images } from "@/constants";
-import { useFetch } from "@/lib/fetch";
-import { useLocationStore } from "@/store";
-import { Ride } from "@/types/type";
+const DashboardCard: React.FC<DashboardCardProps> = ({
+  title,
+  children,
+  gradient,
+}) => (
+  <View style={[styles.card, gradient && { backgroundColor: "#f8f0ff" }]}>
+    <Text style={styles.cardTitle}>{title}</Text>
+    {children}
+  </View>
+);
 
-const Home = () => {
-  const { user } = useUser();
-  const { signOut } = useAuth();
+const MoodButton: React.FC<{
+  emoji: string;
+  selected: boolean;
+  onPress: () => void;
+}> = ({ emoji, selected, onPress }) => {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[styles.moodButton, selected && styles.moodButtonSelected]}
+    >
+      <Text style={styles.moodEmoji}>{emoji}</Text>
+    </TouchableOpacity>
+  );
+};
 
-  const { setUserLocation, setDestinationLocation } = useLocationStore();
-
-  const handleSignOut = () => {
-    signOut();
-    router.replace("/(auth)/sign-in");
+const WellnessTracker: React.FC<{
+  label: string;
+  value: number;
+  unit: string;
+  maxValue: number;
+  onIncrement: () => void;
+  onDecrement: () => void;
+}> = ({ label, value, unit, maxValue, onIncrement, onDecrement }) => {
+  const handlePress = (action: "increment" | "decrement") => {
+    if (action === "increment") {
+      Alert.alert("Great Job!", `You're making progress on ${label}!`);
+      onIncrement();
+    } else {
+      Alert.alert("Oops!", `You're reducing ${label}. Keep it balanced!`);
+      onDecrement();
+    }
   };
+  const { email } = useStore();
+  return (
+    <View style={styles.wellnessItem}>
+      <View style={styles.wellnessHeader}>
+        <Text style={styles.wellnessLabel}>{label}</Text>
+        <View style={styles.wellnessControls}>
+          <TouchableOpacity
+            onPress={() => handlePress("decrement")}
+            style={styles.controlButton}
+          >
+            <Text style={styles.controlText}>−</Text>
+          </TouchableOpacity>
+          <View style={styles.valueContainer}>
+            <Text style={styles.wellnessValue}>{value}</Text>
+            <Text style={styles.wellnessUnit}>{unit}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => handlePress("increment")}
+            style={styles.controlButton}
+          >
+            <Text style={styles.controlText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      <View style={styles.progressContainer}>
+        <View
+          style={[
+            styles.progressBar,
+            { width: `${(value / maxValue) * 100}%` },
+          ]}
+        />
+      </View>
+    </View>
+  );
+};
 
-  const [hasPermission, setHasPermission] = useState<boolean>(false);
+const Dashboard: React.FC = () => {
+  const { email } = useStore();
+  const [userInfo, setUserInfo] = useState<any>(null);
+  const [moodScore, setMoodScore] = useState<number>(4);
+  const [sleepHours, setSleepHours] = useState<number>(7.5);
+  const [waterGlasses, setWaterGlasses] = useState<number>(3);
+  const [steps, setSteps] = useState<number>(6000);
+  const [affirmation, setAffirmation] = useState<string | null>(null);
+  const moodEmojis = ["😢", "😕", "😐", "🙂", "😊"];
 
-  const {
-    data: recentRides,
-    loading,
-    error,
-  } = useFetch<Ride[]>(`/(api)/ride/${user?.id}`);
-
+  // Fetch user's data from API
   useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setHasPermission(false);
-        return;
+    const fetchUserInfo = async () => {
+      try {
+        const response = await fetch("http://192.168.0.3:5000/user_info", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        });
+        const data = await response.json();
+        if (data.error) {
+          console.log("Error", data.error);
+        } else {
+          setUserInfo(data);
+          setMoodScore(data.mood_score || 4);
+          setSleepHours(data.sleep_hours || 7.5);
+          setWaterGlasses(data.water_glasses || 3);
+          setSteps(data.steps || 6000);
+        }
+      } catch (error) {
+        console.error("Error fetching user info:", error);
+        console.log("Error", "There was an error fetching your data.");
       }
+    };
 
-      let location = await Location.getCurrentPositionAsync({});
+    fetchUserInfo();
+  }, [email]);
 
-      const address = await Location.reverseGeocodeAsync({
-        latitude: location.coords?.latitude!,
-        longitude: location.coords?.longitude!,
-      });
+  // Fetch affirmation from API
+  useEffect(() => {
+    const fetchAffirmation = async () => {
+      try {
+        const response = await fetch("http://192.168.0.3:5000/affirm");
+        const data = await response.json();
+        setAffirmation(data.affirmations[0]?.affirmation);
+      } catch (error) {
+        setAffirmation(
+          "You are capable of amazing things. Take each moment one step at a time."
+        );
+      }
+    };
 
-      setUserLocation({
-        latitude: location.coords?.latitude,
-        longitude: location.coords?.longitude,
-        address: `${address[0].name}, ${address[0].region}`,
-      });
-    })();
+    fetchAffirmation();
   }, []);
 
-  const handleDestinationPress = (location: {
-    latitude: number;
-    longitude: number;
-    address: string;
-  }) => {
-    setDestinationLocation(location);
-
-    router.push("/(root)/find-ride");
+  // Update wellness data
+  const updateWellness = async (updates: any) => {
+    try {
+      const response = await fetch("http://192.168.0.3:5000/update_wellness", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          updates,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        console.log("Success", data.message);
+      } else {
+        console.log("Error", data.error);
+      }
+    } catch (error) {
+      console.error("Error updating wellness:", error);
+      console.log("Error", "There was an error updating your wellness data.");
+    }
   };
 
   return (
-    <SafeAreaView className="bg-general-500">
-      <FlatList
-        data={recentRides?.slice(0, 5)}
-        renderItem={({ item }) => <RideCard ride={item} />}
-        keyExtractor={(item, index) => index.toString()}
-        className="px-5"
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{
-          paddingBottom: 100,
-        }}
-        ListEmptyComponent={() => (
-          <View className="flex flex-col items-center justify-center">
-            {!loading ? (
-              <>
-                <Image
-                  source={images.noResult}
-                  className="w-40 h-40"
-                  alt="No recent rides found"
-                  resizeMode="contain"
-                />
-                <Text className="text-sm">No recent rides found</Text>
-              </>
-            ) : (
-              <ActivityIndicator size="small" color="#000" />
-            )}
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Mindful Moments</Text>
+
+        <DashboardCard title="Today's Affirmation" gradient>
+          <Text style={styles.affirmation}>
+            {affirmation || "Loading affirmation..."}
+          </Text>
+        </DashboardCard>
+
+        <DashboardCard title="Mood Check-In">
+          <View style={styles.moodContainer}>
+            {moodEmojis.map((emoji, index) => (
+              <MoodButton
+                key={index}
+                emoji={emoji}
+                selected={moodScore === index + 1}
+                onPress={() => {
+                  setMoodScore(index + 1);
+                  const message =
+                    index + 1 > 3
+                      ? "You're in a great mood today! Keep shining! 🌟"
+                      : "It's okay to have off days. You're doing amazing!";
+                  // Alert.alert("Mood Updated", message);
+                  updateWellness({ mood_score: index + 1 });
+                }}
+              />
+            ))}
           </View>
-        )}
-        ListHeaderComponent={
-          <>
-            <View className="flex flex-row items-center justify-between my-5">
-              <Text className="text-2xl font-JakartaExtraBold">
-                Welcome {user?.firstName}👋
-              </Text>
-              <TouchableOpacity
-                onPress={handleSignOut}
-                className="justify-center items-center w-10 h-10 rounded-full bg-white"
-              >
-                <Image source={icons.out} className="w-4 h-4" />
-              </TouchableOpacity>
-            </View>
+          <Text style={styles.moodLabel}>How are you feeling today?</Text>
+        </DashboardCard>
 
-            <GoogleTextInput
-              icon={icons.search}
-              containerStyle="bg-white shadow-md shadow-neutral-300"
-              handlePress={handleDestinationPress}
-            />
+        <DashboardCard title="Daily Wellness">
+          <WellnessTracker
+            label="Sleep"
+            value={sleepHours}
+            unit="hours"
+            maxValue={12}
+            onIncrement={() => {
+              const newSleep = Math.min(sleepHours + 0.5, 12);
+              setSleepHours(newSleep);
+              updateWellness({ sleep_hours: newSleep });
+            }}
+            onDecrement={() => {
+              const newSleep = Math.max(sleepHours - 0.5, 0);
+              setSleepHours(newSleep);
+              updateWellness({ sleep_hours: newSleep });
+            }}
+          />
 
-            <>
-              <Text className="text-xl font-JakartaBold mt-5 mb-3">
-                Your current location
-              </Text>
-              <View className="flex flex-row items-center bg-transparent h-[300px]">
-                <Map />
-              </View>
-            </>
+          <WellnessTracker
+            label="Water Intake"
+            value={waterGlasses}
+            unit="glasses"
+            maxValue={12}
+            onIncrement={() => {
+              const newWater = Math.min(waterGlasses + 1, 12);
+              setWaterGlasses(newWater);
+              updateWellness({ water_glasses: newWater });
+            }}
+            onDecrement={() => {
+              const newWater = Math.max(waterGlasses - 1, 0);
+              setWaterGlasses(newWater);
+              updateWellness({ water_glasses: newWater });
+            }}
+          />
 
-            <Text className="text-xl font-JakartaBold mt-5 mb-3">
-              Recent Rides
-            </Text>
-          </>
-        }
-      />
+          <WellnessTracker
+            label="Steps"
+            value={steps}
+            unit="steps"
+            maxValue={20000}
+            onIncrement={() => {
+              const newSteps = Math.min(steps + 1000, 20000);
+              setSteps(newSteps);
+              updateWellness({ steps: newSteps });
+            }}
+            onDecrement={() => {
+              const newSteps = Math.max(steps - 1000, 0);
+              setSteps(newSteps);
+              updateWellness({ steps: newSteps });
+            }}
+          />
+        </DashboardCard>
+      </ScrollView>
     </SafeAreaView>
   );
 };
 
-export default Home;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+  },
+  scrollContent: {
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+    color: "#4a154b",
+  },
+  card: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: {
+          width: 0,
+          height: 2,
+        },
+        shadowOpacity: 0.23,
+        shadowRadius: 2.62,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 15,
+    color: "#2d3748",
+  },
+  affirmation: {
+    fontSize: 18,
+    fontStyle: "italic",
+    textAlign: "center",
+    color: "#4a4a4a",
+    lineHeight: 24,
+  },
+  moodContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  moodButton: {
+    padding: 10,
+    borderRadius: 25,
+    backgroundColor: "#f7f7f7",
+  },
+  moodButtonSelected: {
+    backgroundColor: "#e9d5ff",
+    transform: [{ scale: 1.1 }],
+  },
+  moodEmoji: {
+    fontSize: 30,
+  },
+  moodLabel: {
+    textAlign: "center",
+    color: "#666",
+    marginTop: 10,
+  },
+  wellnessItem: {
+    marginBottom: 20,
+  },
+  wellnessHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  wellnessLabel: {
+    fontSize: 16,
+    color: "#4a4a4a",
+    flex: 1,
+  },
+  wellnessControls: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  controlButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#8b5cf6",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  controlText: {
+    fontSize: 20,
+    color: "white",
+    fontWeight: "bold",
+  },
+  valueContainer: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginHorizontal: 12,
+    minWidth: 60,
+    justifyContent: "center",
+  },
+  wellnessValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#4a154b",
+    marginRight: 4,
+  },
+  wellnessUnit: {
+    fontSize: 14,
+    color: "#666",
+  },
+  progressContainer: {
+    height: 8,
+    backgroundColor: "#f0f0f0",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  progressBar: {
+    height: "100%",
+    backgroundColor: "#8b5cf6",
+    borderRadius: 4,
+  },
+});
+
+export default Dashboard;

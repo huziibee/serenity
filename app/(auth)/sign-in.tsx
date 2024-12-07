@@ -1,58 +1,81 @@
-import { useSignIn } from "@clerk/clerk-expo";
+import React, { useState } from "react";
+import {
+  Alert,
+  Image,
+  ScrollView,
+  Text,
+  View,
+  StyleSheet,
+  SafeAreaView,
+} from "react-native";
 import { Link, router } from "expo-router";
-import { useCallback, useState } from "react";
-import { Alert, Image, ScrollView, Text, View } from "react-native";
-
+import axios from "axios";
+import { useStore } from "@/store/index";
 import CustomButton from "@/components/CustomButton";
 import InputField from "@/components/InputField";
-import OAuth from "@/components/OAuth";
 import { icons, images } from "@/constants";
 
 const SignIn = () => {
-  const { signIn, setActive, isLoaded } = useSignIn();
-
   const [form, setForm] = useState({
-    email: "",
-    password: "",
+    email: "Moe@gmail.com",
+    password: "Moebee",
   });
+  const { setEmail } = useStore(); // Use Zustand to update email
+  const handleSignIn = async (e: React.FormEvent) => {
+    console.log("Sign in pressed with:", form);
+    e.preventDefault();
 
-  const onSignInPress = useCallback(async () => {
-    if (!isLoaded) return;
+    const { email, password } = form;
 
     try {
-      const signInAttempt = await signIn.create({
-        identifier: form.email,
-        password: form.password,
+      const response = await axios.post("http://192.168.0.3:5000/check_user", {
+        email,
+        password,
       });
 
-      if (signInAttempt.status === "complete") {
-        await setActive({ session: signInAttempt.createdSessionId });
-        router.replace("/(root)/(tabs)/home");
-      } else {
-        // See https://clerk.com/docs/custom-flows/error-handling for more info on error handling
-        console.log(JSON.stringify(signInAttempt, null, 2));
-        Alert.alert("Error", "Log in failed. Please try again.");
+      if (response.status === 200) {
+        console.log("Login successful", response.data);
+        // Show success alert
+        setEmail(email);
+        Alert.alert("Success", "You have signed in successfully!", [
+          { text: "OK", onPress: () => router.push("/(root)/(tabs)/home") },
+        ]);
       }
-    } catch (err: any) {
-      console.log(JSON.stringify(err, null, 2));
-      Alert.alert("Error", err.errors[0].longMessage);
+    } catch (error) {
+      if (error.response) {
+        console.error("Error:", error.response.data.error);
+        // Show error alert
+        Alert.alert(
+          "Sign In Failed",
+          error.response.data.error || "Invalid email or password."
+        );
+      } else {
+        console.error("An unexpected error occurred");
+        Alert.alert(
+          "Error",
+          "An unexpected error occurred. Please try again later."
+        );
+      }
     }
-  }, [isLoaded, form]);
+  };
 
   return (
-    <ScrollView className="flex-1 bg-white">
-      <View className="flex-1 bg-white">
-        <View className="relative w-full h-[250px]">
-          <Image source={images.signUpCar} className="z-0 w-full h-[250px]" />
-          <Text className="text-2xl text-black font-JakartaSemiBold absolute bottom-5 left-5">
-            Welcome 👋
-          </Text>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={images.signinn}
+            style={styles.image}
+            resizeMode="cover"
+          />
+          <View style={styles.overlay} />
+          <Text style={styles.welcomeText}>Welcome Back</Text>
         </View>
 
-        <View className="p-5">
+        <View style={styles.formContainer}>
           <InputField
             label="Email"
-            placeholder="Enter email"
+            placeholder="Enter your email"
             icon={icons.email}
             textContentType="emailAddress"
             value={form.email}
@@ -61,7 +84,7 @@ const SignIn = () => {
 
           <InputField
             label="Password"
-            placeholder="Enter password"
+            placeholder="Enter your password"
             icon={icons.lock}
             secureTextEntry={true}
             textContentType="password"
@@ -71,23 +94,73 @@ const SignIn = () => {
 
           <CustomButton
             title="Sign In"
-            onPress={onSignInPress}
-            className="mt-6"
+            onPress={handleSignIn}
+            style={styles.signInButton}
           />
 
-          <OAuth />
-
-          <Link
-            href="/sign-up"
-            className="text-lg text-center text-general-200 mt-10"
-          >
-            Don't have an account?{" "}
-            <Text className="text-primary-500">Sign Up</Text>
+          <Link href="/sign-up" style={styles.signUpLink}>
+            <Text style={styles.signUpText}>
+              Don't have an account?{" "}
+              <Text style={styles.signUpHighlight}>Sign Up</Text>
+            </Text>
           </Link>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "white",
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  imageContainer: {
+    position: "relative",
+    width: "100%",
+    height: 300,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  welcomeText: {
+    fontSize: 32,
+    color: "white",
+    fontWeight: "bold",
+    position: "absolute",
+    bottom: 40,
+    left: 20,
+    textShadowColor: "rgba(0, 0, 0, 0.75)",
+    textShadowOffset: { width: -1, height: 1 },
+    textShadowRadius: 10,
+  },
+  formContainer: {
+    padding: 24,
+    paddingTop: 32,
+  },
+  signInButton: {
+    marginTop: 32,
+  },
+  signUpLink: {
+    marginTop: 24,
+  },
+  signUpText: {
+    fontSize: 16,
+    textAlign: "center",
+    color: "#4B5563",
+  },
+  signUpHighlight: {
+    color: "#9334ea",
+    fontWeight: "bold",
+  },
+});
 
 export default SignIn;

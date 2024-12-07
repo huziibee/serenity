@@ -1,60 +1,95 @@
-import { TouchableOpacity, Text } from "react-native";
+import React from "react";
+import {
+  TouchableOpacity,
+  Text,
+  StyleSheet,
+  ViewStyle,
+  TextStyle,
+} from "react-native";
 
+// Assuming ButtonProps is defined in your types file
 import { ButtonProps } from "@/types/type";
 
-const getBgVariantStyle = (variant: ButtonProps["bgVariant"]) => {
+const getBgVariantStyle = (variant: ButtonProps["bgVariant"]): ViewStyle => {
   switch (variant) {
     case "secondary":
-      return "bg-gray-500";
+      return { backgroundColor: "#6B7280" };
     case "danger":
-      return "bg-red-500";
+      return { backgroundColor: "#EF4444" };
     case "success":
-      return "bg-green-500";
+      return { backgroundColor: "#10B981" };
     case "outline":
-      return "bg-transparent border-neutral-300 border-[0.5px]";
+      return {
+        backgroundColor: "transparent",
+        borderColor: "#D1D5DB",
+        borderWidth: 0.5,
+      };
     default:
-      return "bg-[#0286FF]";
+      return { backgroundColor: "#9334ea" };
   }
 };
 
-const getTextVariantStyle = (variant: ButtonProps["textVariant"]) => {
+const getTextVariantStyle = (
+  variant: ButtonProps["textVariant"]
+): TextStyle => {
   switch (variant) {
     case "primary":
-      return "text-black";
+      return { color: "black" };
     case "secondary":
-      return "text-gray-100";
+      return { color: "#F3F4F6" };
     case "danger":
-      return "text-red-100";
+      return { color: "#FEE2E2" };
     case "success":
-      return "text-green-100";
+      return { color: "#D1FAE5" };
     default:
-      return "text-white";
+      return { color: "white" };
   }
 };
 
-const CustomButton = ({
+const CustomButton: React.FC<ButtonProps> = ({
   onPress,
   title,
   bgVariant = "primary",
   textVariant = "default",
   IconLeft,
   IconRight,
-  className,
+  style,
   ...props
-}: ButtonProps) => {
+}) => {
   return (
     <TouchableOpacity
       onPress={onPress}
-      className={`w-full rounded-full p-3 flex flex-row justify-center items-center shadow-md shadow-neutral-400/70 ${getBgVariantStyle(bgVariant)} ${className}`}
+      style={[styles.button, getBgVariantStyle(bgVariant), style]}
       {...props}
     >
       {IconLeft && <IconLeft />}
-      <Text className={`text-lg font-bold ${getTextVariantStyle(textVariant)}`}>
+      <Text style={[styles.text, getTextVariantStyle(textVariant)]}>
         {title}
       </Text>
       {IconRight && <IconRight />}
     </TouchableOpacity>
   );
 };
+
+const styles = StyleSheet.create({
+  button: {
+    width: "100%",
+    borderRadius: 9999,
+    padding: 12,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#e2d3fe",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  text: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+});
 
 export default CustomButton;
